@@ -156,7 +156,12 @@ public class KVServiceImpl extends HttpServer implements KVService {
     }
 
     private String getId(Request request) {
-        return request.getParameter("id=");
+        String param = request.getParameter("id=");
+        if (param == null){
+            return "";
+        } else {
+            return param;
+        }
     }
 
     private String methodToString(Request request) {
