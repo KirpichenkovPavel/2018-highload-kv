@@ -16,7 +16,9 @@
 
 package ru.mail.polis;
 
+import one.nio.server.ServerConfig;
 import org.jetbrains.annotations.NotNull;
+import ru.mail.polis.kirpichenkov.KVServiceImpl;
 
 import java.io.IOException;
 
@@ -51,7 +53,6 @@ final class KVServiceFactory {
             throw new IllegalArgumentException("Port out of range");
         }
 
-        // TODO: Implement me
-        throw new UnsupportedOperationException("Implement me!");
+        return KVServiceImpl.create(dao, port);
     }
 }
