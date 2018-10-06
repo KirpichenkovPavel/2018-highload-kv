@@ -19,6 +19,13 @@ dependencies {
 
     // HTTP client for unit tests
     testCompile("org.apache.httpcomponents:fluent-hc:4.5.3")
+
+    // Apache commons
+    compile("org.apache.commons:commons-io:1.3.2")
+
+    // One-nio server
+    compile("ru.odnoklassniki:one-nio:1.0.1")
+
 }
 
 tasks {
