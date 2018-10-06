@@ -1,6 +1,7 @@
 package ru.mail.polis.kirpichenkov;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVDao;
 
@@ -16,6 +17,7 @@ import org.apache.commons.io.FileUtils;
  */
 public class KVDaoImpl implements KVDao {
     private final int HEX_CHAR_PER_DIR = 4;
+    private final static Logger logger = Logger.getLogger(KVDaoImpl.class);
 
     private final File basePath;
 
@@ -27,6 +29,7 @@ public class KVDaoImpl implements KVDao {
     @Override
     public byte[] get(@NotNull byte[] key) throws NoSuchElementException, IOException {
         File fileToRead = keyToFile(key);
+        logger.debug(String.format("get %s", fileToRead.toString()));
         if (!fileToRead.exists() || !fileToRead.isFile()) {
             throw new NoSuchElementException();
         } else {
@@ -37,6 +40,7 @@ public class KVDaoImpl implements KVDao {
     @Override
     public void upsert(@NotNull byte[] key, @NotNull byte[] value) throws IOException {
         File fileToWrite = keyToFile(key);
+        logger.debug(String.format("upsert %s", fileToWrite));
         File parentDir = fileToWrite.getParentFile();
         if (!parentDir.exists()) {
             if (!parentDir.mkdirs()) {
@@ -50,6 +54,7 @@ public class KVDaoImpl implements KVDao {
     @Override
     public void remove(@NotNull byte[] key) throws IOException {
         File fileToRemove = keyToFile(key);
+        logger.debug(String.format("upsert %s", fileToRemove));
         if (fileToRemove.exists()) {
             if (!fileToRemove.delete()) {
                 throw new IOException("Can't remove file");

@@ -3,6 +3,7 @@ package ru.mail.polis.kirpichenkov;
 import one.nio.http.*;
 import one.nio.server.AcceptorConfig;
 import one.nio.server.ServerConfig;
+import org.apache.log4j.Logger;
 import ru.mail.polis.KVDao;
 import ru.mail.polis.KVService;
 
@@ -14,6 +15,8 @@ import java.util.NoSuchElementException;
  */
 public class KVServiceImpl extends HttpServer implements KVService {
     private KVDao dao;
+    private ServerConfig config;
+    private final static Logger logger = Logger.getLogger(KVServiceImpl.class);
 
     private KVServiceImpl(ServerConfig config) throws IOException {
         super(config);
@@ -31,7 +34,20 @@ public class KVServiceImpl extends HttpServer implements KVService {
         ServerConfig config = createConfig(port);
         KVServiceImpl kvService = new KVServiceImpl(config);
         kvService.dao = dao;
+        kvService.config = config;
         return kvService;
+    }
+
+    public void start() {
+        super.start();
+        for (AcceptorConfig ac: config.acceptors) {
+            logger.debug(String.format("server started at %s:%d", ac.address, ac.port));
+        }
+    }
+
+    public void stop() {
+        super.stop();
+        logger.debug("server stopped");
     }
 
     private static ServerConfig createConfig(int port) {
@@ -43,6 +59,7 @@ public class KVServiceImpl extends HttpServer implements KVService {
     }
 
     public void handleDefault(Request request, HttpSession session) throws IOException {
+        logger.debug(String.format("%s %s", methodToString(request), request.getURI()));
         switch (request.getPath()) {
             case "/v0/status":
                 handleStatus(session);
@@ -84,6 +101,7 @@ public class KVServiceImpl extends HttpServer implements KVService {
             sendNotFound(session);
         } catch (IOException ex) {
             sendServerError(session);
+            logger.error("server error", ex);
         }
     }
 
@@ -98,6 +116,7 @@ public class KVServiceImpl extends HttpServer implements KVService {
             session.sendResponse(new Response(Response.CREATED, Response.EMPTY));
         } catch (IOException ex) {
             sendServerError(session);
+            logger.error("server error", ex);
         }
     }
 
@@ -112,6 +131,7 @@ public class KVServiceImpl extends HttpServer implements KVService {
             session.sendResponse(new Response(Response.ACCEPTED, Response.EMPTY));
         } catch (IOException ex) {
             sendServerError(session);
+            logger.error("server error", ex);
         }
     }
 
@@ -137,5 +157,20 @@ public class KVServiceImpl extends HttpServer implements KVService {
 
     private String getId(Request request) {
         return request.getParameter("id=");
+    }
+
+    private String methodToString(Request request) {
+        switch (request.getMethod()) {
+            case Request.METHOD_GET: return "GET";
+            case Request.METHOD_POST: return "POST";
+            case Request.METHOD_HEAD: return "HEAD";
+            case Request.METHOD_OPTIONS: return "OPTIONS";
+            case Request.METHOD_PUT: return "PUT";
+            case Request.METHOD_DELETE: return "DELETE";
+            case Request.METHOD_TRACE: return "TRACE";
+            case Request.METHOD_CONNECT: return "CONNECT";
+            case Request.METHOD_PATCH: return "PATCH";
+            default: return "";
+        }
     }
 }

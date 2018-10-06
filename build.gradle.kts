@@ -26,6 +26,9 @@ dependencies {
     // One-nio server
     compile("ru.odnoklassniki:one-nio:1.0.1")
 
+    // Logging
+    compile("org.apache.logging.log4j:log4j-core:2.11.1")
+
 }
 
 tasks {
