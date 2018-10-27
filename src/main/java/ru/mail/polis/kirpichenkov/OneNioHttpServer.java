@@ -2,26 +2,55 @@ package ru.mail.polis.kirpichenkov;
 
 import one.nio.http.*;
 import org.apache.log4j.Logger;
+import org.javatuples.Pair;
 import ru.mail.polis.KVDao;
+import ru.mail.polis.kirpichenkov.Result.Status;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.NoSuchElementException;
+import java.util.List;
+import java.util.Set;
 
 public class OneNioHttpServer extends HttpServer {
-  private static final Logger logger = Logger.getLogger(KVServiceImpl.class);
+  private static final Logger logger = Logger.getLogger(OneNioHttpServer.class);
   private KVDao dao;
+  private List<String> topology;
+  private String me;
 
   OneNioHttpServer(HttpServerConfig config, Object... routers) throws IOException {
     super(config, routers);
   }
 
-  public void setDao(KVDao dao) {
+  void setDao(KVDao dao) {
     this.dao = dao;
+  }
+
+  void setTopology(Set<String> topology) {
+    this.topology = TopologyUtil.ordered(topology);
+    me = findMe(topology);
+  }
+
+  /**
+   * Try to find this node's url in topology by port number
+   * What if nodes are on the same port on different hosts?
+   * How to get this host's url?
+   * @param topology collection of node urls
+   * @return found url or empty string
+   */
+  private String findMe(Collection<String> topology) {
+    return topology
+        .stream()
+        .filter(url -> {
+          String[] parts = url.split(":");
+          return Integer.parseInt(parts[parts.length - 1]) == port;
+        })
+        .findFirst()
+        .orElse("");
   }
 
   /**
    * Entry point for all requests
-   *
    * @throws IOException
    */
   public void handleDefault(Request request, HttpSession session) throws IOException {
@@ -39,44 +68,99 @@ public class OneNioHttpServer extends HttpServer {
   }
 
   private void handleEntity(Request request, HttpSession session) throws IOException {
+    Pair<String, Collection<String>> idAndNodes;
+    try{
+      idAndNodes = processParams(request);
+    } catch (IllegalArgumentException ex) {
+      sendBadRequest(session);
+      return;
+    }
+    String id = idAndNodes.getValue0();
+    Collection<String> nodes = idAndNodes.getValue1();
+    // TODO add header for internal requests
+    if (true) {
+      handleAlone(request, session, id);
+    } else {
+      collaborate(request, session, id, nodes);
+    }
+  }
+
+  private Pair<String, Collection<String>> processParams(Request request)
+      throws IllegalArgumentException {
+    String id = getId(request);
+    String replicas = getReplicas(request);
+    if (id.isEmpty()) {
+      throw new IllegalArgumentException("Empty Id");
+    }
+
+    Pair<Integer, Integer> ackFrom;
+    if (replicas.isEmpty()) {
+      ackFrom = TopologyUtil.quorum(topology.size());
+    } else {
+      ackFrom = TopologyUtil.parseReplicas(replicas);
+    }
+    Collection<String> nodes = TopologyUtil.nodes(topology, id, ackFrom.getValue1());
+    return Pair.with(id, nodes);
+  }
+
+  private void collaborate(Request request,
+                           HttpSession session,
+                           String Id,
+                           Collection<String> nodes) throws IOException {
+
+  }
+
+  private void handleAlone(Request request,
+                           HttpSession session,
+                           String id) throws IOException {
     switch (request.getMethod()) {
       case Request.METHOD_GET:
-        handleGet(request, session);
+        handleGetAlone(session, id);
         break;
       case Request.METHOD_PUT:
-        handlePut(request, session);
+        handlePut(request, session, id);
         break;
       case Request.METHOD_DELETE:
-        handleDelete(request, session);
+        handleDelete(request, session, id);
         break;
       default:
         sendMethodNotAllowed(session);
     }
   }
 
-  private void handleGet(Request request, HttpSession session) throws IOException {
-    String id = getId(request);
-    if (id.isEmpty()) {
-      sendBadRequest(session);
-      return;
-    }
+  private void handleGetAlone(HttpSession session, String id) throws IOException {
     try {
-      byte[] body = dao.get(id.getBytes());
-      session.sendResponse(Response.ok(body));
-    } catch (NoSuchElementException ex) {
-      sendNotFound(session);
+      Result result = innerGet(id);
+      switch (result.getStatus()) {
+        case OK:
+          session.sendResponse(Response.ok(result.getBody()));
+          break;
+        case ABSENT:
+          sendNotFound(session);
+          break;
+        case DELETED:
+          sendNotFound(session);
+          break;
+      }
     } catch (IOException ex) {
       sendServerError(session);
-      logger.error("server error", ex);
+      logger.error(ex);
     }
   }
 
-  private void handlePut(Request request, HttpSession session) throws IOException {
-    String id = getId(request);
-    if (id.isEmpty()) {
-      sendBadRequest(session);
-      return;
+  private Result innerGet(String id) throws IOException {
+    Result result = new Result();
+    try {
+      result.setBody(dao.get(id.getBytes()));
+      result.setStatus(Status.OK);
+    } catch (NoSuchElementException ex) {
+      // TODO tombstones
+      result.setStatus(Status.ABSENT);
     }
+    return result;
+  }
+
+  private void handlePut(Request request, HttpSession session, String id) throws IOException {
     try {
       dao.upsert(id.getBytes(), request.getBody());
       session.sendResponse(new Response(Response.CREATED, Response.EMPTY));
@@ -86,12 +170,7 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private void handleDelete(Request request, HttpSession session) throws IOException {
-    String id = getId(request);
-    if (id.isEmpty()) {
-      sendBadRequest(session);
-      return;
-    }
+  private void handleDelete(Request request, HttpSession session, String id) throws IOException {
     try {
       dao.remove(id.getBytes());
       session.sendResponse(new Response(Response.ACCEPTED, Response.EMPTY));
@@ -122,7 +201,15 @@ public class OneNioHttpServer extends HttpServer {
   }
 
   private String getId(Request request) {
-    String param = request.getParameter("id=");
+    return getParameter(request, "id");
+  }
+
+  private String getReplicas(Request request) {
+    return getParameter(request, "replicas");
+  }
+
+  private String getParameter(Request request, String name) {
+    String param = request.getParameter(String.format("%s=", name));
     if (param == null) {
       return "";
     } else {

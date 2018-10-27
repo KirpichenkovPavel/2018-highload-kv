@@ -7,12 +7,14 @@ import ru.mail.polis.KVDao;
 import ru.mail.polis.KVService;
 
 import java.io.IOException;
+import java.util.Set;
 
 /** @author Pavel Kirpichenkov */
 public class KVServiceImpl implements KVService {
   private static final Logger logger = Logger.getLogger(KVServiceImpl.class);
   private KVDao dao;
   private HttpServerConfig config;
+  private Set<String> topology;
   private OneNioHttpServer server;
 
   private KVServiceImpl() {}
@@ -25,26 +27,35 @@ public class KVServiceImpl implements KVService {
     this.config = config;
   }
 
+  private void setTopology(Set<String> topology) {
+    this.topology = topology;
+  }
+
   /**
    * Get new service instance
    *
    * @param dao {@link KVDao} instance
    * @param port service port number
+   * @param topology set of all node urls
    * @return new instance
-   * @throws IOException
    */
-  public static KVServiceImpl create(KVDao dao, int port) {
+  public static KVService create(KVDao dao, int port, Set<String> topology) {
     HttpServerConfig config = createConfig(port);
     KVServiceImpl kvService = new KVServiceImpl();
     kvService.setDao(dao);
     kvService.setConfig(config);
+    kvService.setTopology(topology);
     return kvService;
   }
 
+  /**
+   * Instantiate and start a server instance
+   */
   public void start() {
     try {
       server = new OneNioHttpServer(this.config);
       server.setDao(dao);
+      server.setTopology(topology);
       server.start();
     } catch (IOException e) {
       logger.error(e);

@@ -29,6 +29,9 @@ dependencies {
 
     // Logging
     compile("org.apache.logging.log4j:log4j-core:2.11.1")
+
+    // Tuples
+    compile("org.javatuples:javatuples:1.2")
 }
 
 tasks {
