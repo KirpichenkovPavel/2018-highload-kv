@@ -42,7 +42,7 @@ public class KVServiceImpl implements KVService {
   public static KVService create(KVDao dao, int port, Set<String> topology) {
     HttpServerConfig config = createConfig(port);
     KVServiceImpl kvService = new KVServiceImpl();
-    try{
+    try {
       kvService.setDao((BasePathGrantingKVDao) dao);
     } catch (ClassCastException ex) {
       throw new RuntimeException("KVDao must implement BasePathGrantingKVDao");
@@ -52,9 +52,7 @@ public class KVServiceImpl implements KVService {
     return kvService;
   }
 
-  /**
-   * Instantiate and start a server instance
-   */
+  /** Instantiate and start a server instance */
   public void start() {
     try {
       server = new OneNioHttpServer(this.config);

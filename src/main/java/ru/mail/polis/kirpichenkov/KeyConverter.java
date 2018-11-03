@@ -10,8 +10,7 @@ class KeyConverter {
   private static final String FILE_SUFFIX = "_";
   private static final String TOMBSTONE_SUFFIX = "+";
 
-  private KeyConverter() {
-  }
+  private KeyConverter() {}
 
   /**
    * Convert key from byte array to file path. The total number of subdirectories and files in one
@@ -19,7 +18,7 @@ class KeyConverter {
    */
   @NotNull
   static File keyToFile(@NotNull byte[] key, File basePath) {
-    return new File(pathString(key,basePath));
+    return new File(pathString(key, basePath));
   }
 
   @NotNull
@@ -39,5 +38,4 @@ class KeyConverter {
     path.append('/').append(hexKey, ix, hexLength).append(FILE_SUFFIX);
     return path.toString();
   }
-
 }

@@ -6,14 +6,15 @@ import java.util.*;
 
 /**
  * Util methods for working with topology
+ *
  * @author KirpichenkovPavel
  */
 public class TopologyUtil {
-  private TopologyUtil() {
-  }
+  private TopologyUtil() {}
 
   /**
    * Sort nodes in topology to fix their order
+   *
    * @param topology set of node urls
    * @return sorted list of node urls
    */
@@ -25,15 +26,15 @@ public class TopologyUtil {
 
   /**
    * Return N nodes of topology, associated with the given Id, using consistent hashing
+   *
    * @param orderedTopology all available nodes
    * @param id key from request
    * @param from requested number of nodes
    * @return collection of N nodes, responsible for the given Id
    * @throws IllegalArgumentException if parameters are incorrect
    */
-  public static Collection<String> nodes(List<String> orderedTopology,
-                                         String id,
-                                         int from) throws IllegalArgumentException {
+  public static Collection<String> nodes(List<String> orderedTopology, String id, int from)
+      throws IllegalArgumentException {
     if (orderedTopology.size() < 1) {
       throw new IllegalArgumentException("Empty list of nodes in topology");
     }
@@ -53,7 +54,8 @@ public class TopologyUtil {
     return results;
   }
 
-  public static Pair<Integer, Integer> parseReplicas(String replicas) throws IllegalArgumentException {
+  public static Pair<Integer, Integer> parseReplicas(String replicas)
+      throws IllegalArgumentException {
     if (!replicas.matches("[1-9][0-9]*/[1-9][0-9]*")) {
       throw new IllegalArgumentException("Request parameters are incorrect");
     }
@@ -69,5 +71,4 @@ public class TopologyUtil {
   public static int quorum(int from) {
     return from / 2 + 1;
   }
-
 }
