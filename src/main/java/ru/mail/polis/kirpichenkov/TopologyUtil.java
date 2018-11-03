@@ -55,19 +55,19 @@ public class TopologyUtil {
 
   public static Pair<Integer, Integer> parseReplicas(String replicas) throws IllegalArgumentException {
     if (!replicas.matches("[1-9][0-9]*/[1-9][0-9]*")) {
-      throw new IllegalArgumentException("Wrong param format");
+      throw new IllegalArgumentException("Request parameters are incorrect");
     }
     String[] fromTo = replicas.split("/");
     int from = Integer.parseInt(fromTo[0]);
     int to = Integer.parseInt(fromTo[1]);
     if (from == 0 || from > to) {
-      throw new IllegalArgumentException("Wrong param format");
+      throw new IllegalArgumentException("Request parameters are incorrect");
     }
     return Pair.with(from, to);
   }
 
-  public static Pair<Integer, Integer> quorum(int from) {
-    return Pair.with(from / 2 + 1, from);
+  public static int quorum(int from) {
+    return from / 2 + 1;
   }
 
 }

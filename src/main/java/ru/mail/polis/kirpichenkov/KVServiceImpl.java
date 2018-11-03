@@ -12,14 +12,14 @@ import java.util.Set;
 /** @author Pavel Kirpichenkov */
 public class KVServiceImpl implements KVService {
   private static final Logger logger = Logger.getLogger(KVServiceImpl.class);
-  private KVDao dao;
+  private BasePathGrantingKVDao dao;
   private HttpServerConfig config;
   private Set<String> topology;
   private OneNioHttpServer server;
 
   private KVServiceImpl() {}
 
-  private void setDao(KVDao dao) {
+  private void setDao(BasePathGrantingKVDao dao) {
     this.dao = dao;
   }
 
@@ -42,7 +42,11 @@ public class KVServiceImpl implements KVService {
   public static KVService create(KVDao dao, int port, Set<String> topology) {
     HttpServerConfig config = createConfig(port);
     KVServiceImpl kvService = new KVServiceImpl();
-    kvService.setDao(dao);
+    try{
+      kvService.setDao((BasePathGrantingKVDao) dao);
+    } catch (ClassCastException ex) {
+      throw new RuntimeException("KVDao must implement BasePathGrantingKVDao");
+    }
     kvService.setConfig(config);
     kvService.setTopology(topology);
     return kvService;

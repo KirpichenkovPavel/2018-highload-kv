@@ -3,18 +3,21 @@ package ru.mail.polis.kirpichenkov;
 import one.nio.http.*;
 import org.apache.log4j.Logger;
 import org.javatuples.Pair;
+import org.javatuples.Triplet;
+import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVDao;
-import ru.mail.polis.kirpichenkov.Result.Status;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.NoSuchElementException;
 import java.util.List;
 import java.util.Set;
 
+import static ru.mail.polis.kirpichenkov.Collaboration.entityPath;
+
 public class OneNioHttpServer extends HttpServer {
   private static final Logger logger = Logger.getLogger(OneNioHttpServer.class);
-  private KVDao dao;
+  private InternalDao dao;
   private List<String> topology;
   private String me;
 
@@ -22,8 +25,8 @@ public class OneNioHttpServer extends HttpServer {
     super(config, routers);
   }
 
-  void setDao(KVDao dao) {
-    this.dao = dao;
+  void setDao(BasePathGrantingKVDao dao) {
+    this.dao = new InternalDao(dao);
   }
 
   void setTopology(Set<String> topology) {
@@ -32,25 +35,27 @@ public class OneNioHttpServer extends HttpServer {
   }
 
   /**
-   * Try to find this node's url in topology by port number
-   * What if nodes are on the same port on different hosts?
-   * How to get this host's url?
+   * Try to find this node's url in topology by port number What if nodes are on the same port on
+   * different hosts? How to get this host's url?
+   *
    * @param topology collection of node urls
    * @return found url or empty string
    */
   private String findMe(Collection<String> topology) {
     return topology
         .stream()
-        .filter(url -> {
-          String[] parts = url.split(":");
-          return Integer.parseInt(parts[parts.length - 1]) == port;
-        })
+        .filter(
+            url -> {
+              String[] parts = url.split(":");
+              return Integer.parseInt(parts[parts.length - 1]) == port;
+            })
         .findFirst()
         .orElse("");
   }
 
   /**
    * Entry point for all requests
+   *
    * @throws IOException
    */
   public void handleDefault(Request request, HttpSession session) throws IOException {
@@ -68,24 +73,34 @@ public class OneNioHttpServer extends HttpServer {
   }
 
   private void handleEntity(Request request, HttpSession session) throws IOException {
-    Pair<String, Collection<String>> idAndNodes;
-    try{
-      idAndNodes = processParams(request);
+    Triplet<String, Integer, Integer> params;
+    try {
+      params = processParams(request);
     } catch (IllegalArgumentException ex) {
+      logger.debug(ex);
       sendBadRequest(session);
       return;
     }
-    String id = idAndNodes.getValue0();
-    Collection<String> nodes = idAndNodes.getValue1();
-    // TODO add header for internal requests
-    if (true) {
+    String id = params.getValue0();
+    int acks = params.getValue1();
+    int from = params.getValue2();
+    Collection<String> nodes = TopologyUtil.nodes(topology, id, from);
+    if (Collaboration.isInternal(request)) {
+      logger.debug("internal");
       handleAlone(request, session, id);
     } else {
-      collaborate(request, session, id, nodes);
+      logger.debug("remote");
+      collaborate(request, session, id, nodes, acks);
     }
   }
 
-  private Pair<String, Collection<String>> processParams(Request request)
+  /**
+   * parse request params
+   * @param request incoming request
+   * @return entity key, minimal required number of acknowledges, total number of replicas
+   * @throws IllegalArgumentException if request contains malformed parameters
+   */
+  private Triplet<String, Integer, Integer> processParams(Request request)
       throws IllegalArgumentException {
     String id = getId(request);
     String replicas = getReplicas(request);
@@ -93,90 +108,116 @@ public class OneNioHttpServer extends HttpServer {
       throw new IllegalArgumentException("Empty Id");
     }
 
-    Pair<Integer, Integer> ackFrom;
+    int acks;
+    int from;
     if (replicas.isEmpty()) {
-      ackFrom = TopologyUtil.quorum(topology.size());
+      from = topology.size();
+      acks = TopologyUtil.quorum(from);
     } else {
-      ackFrom = TopologyUtil.parseReplicas(replicas);
+      Pair<Integer, Integer> ackFrom = TopologyUtil.parseReplicas(replicas);
+      acks = ackFrom.getValue0();
+      from = ackFrom.getValue1();
     }
-    Collection<String> nodes = TopologyUtil.nodes(topology, id, ackFrom.getValue1());
-    return Pair.with(id, nodes);
+    return Triplet.with(id, acks, from);
   }
 
-  private void collaborate(Request request,
-                           HttpSession session,
-                           String Id,
-                           Collection<String> nodes) throws IOException {
-
+  private void collaborate(
+      Request request, HttpSession session, String id, Collection<String> nodes, int acksRequired)
+      throws IOException {
+    logger.debug("I am " + me);
+    List<Result> results = new ArrayList<>();
+    for (String nodeUrl : nodes) {
+      Result result;
+      if (nodeUrl.equals(me)) {
+        result = Collaboration.local(request, id, dao);
+        logger.debug(
+            String.format(
+                "Local %s %s%s %s",
+                methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+      } else {
+        result = Collaboration.remote(request, id, nodeUrl);
+        logger.debug(
+            String.format(
+                "Remote %s %s%s %s",
+                methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+      }
+      results.add(result);
+    }
+    Result result = Collaboration.mergeResults(results, acksRequired);
+    Response response =
+        result.getStatus() == Result.Status.ERROR
+            ? notEnoughReplicas()
+            : resultToResponse(request.getMethod(), result);
+    session.sendResponse(response);
   }
 
-  private void handleAlone(Request request,
-                           HttpSession session,
-                           String id) throws IOException {
-    switch (request.getMethod()) {
+  private void handleAlone(Request request, HttpSession session, String id) throws IOException {
+    Result result = Collaboration.local(request, id, dao);
+    Response response = resultToResponse(request.getMethod(), result);
+    if (response != null) {
+      session.sendResponse(response);
+    } else {
+      session.sendResponse(serverError());
+    }
+  }
+
+  private Response resultToResponse(int method, Result result) {
+    Response response;
+    switch (method) {
       case Request.METHOD_GET:
-        handleGetAlone(session, id);
+        response = getResultToResponse(result);
         break;
       case Request.METHOD_PUT:
-        handlePut(request, session, id);
+        response = putResultToResponse(result);
         break;
       case Request.METHOD_DELETE:
-        handleDelete(request, session, id);
+        response = deleteResultToResponse(result);
         break;
       default:
-        sendMethodNotAllowed(session);
+        response = notAllowed();
+    }
+    response.addHeader(Collaboration.TIMESTAMP_HEADER + ": " + result.getTimestamp().toString());
+    return response;
+  }
+
+  private Response getResultToResponse(Result result) {
+    switch (result.getStatus()) {
+      case OK:
+        return Response.ok(result.getBody());
+      case ABSENT:
+      case DELETED:
+        return notFound();
+      case ERROR:
+        return serverError();
+      default:
+        return serverError();
     }
   }
 
-  private void handleGetAlone(HttpSession session, String id) throws IOException {
-    try {
-      Result result = innerGet(id);
-      switch (result.getStatus()) {
-        case OK:
-          session.sendResponse(Response.ok(result.getBody()));
-          break;
-        case ABSENT:
-          sendNotFound(session);
-          break;
-        case DELETED:
-          sendNotFound(session);
-          break;
-      }
-    } catch (IOException ex) {
-      sendServerError(session);
-      logger.error(ex);
+  private Response putResultToResponse(Result result) {
+    switch (result.getStatus()) {
+      case OK:
+        return created();
+      case ABSENT:
+      case DELETED:
+      case ERROR:
+        return serverError();
+      default:
+        return serverError();
     }
   }
 
-  private Result innerGet(String id) throws IOException {
-    Result result = new Result();
-    try {
-      result.setBody(dao.get(id.getBytes()));
-      result.setStatus(Status.OK);
-    } catch (NoSuchElementException ex) {
-      // TODO tombstones
-      result.setStatus(Status.ABSENT);
-    }
-    return result;
-  }
-
-  private void handlePut(Request request, HttpSession session, String id) throws IOException {
-    try {
-      dao.upsert(id.getBytes(), request.getBody());
-      session.sendResponse(new Response(Response.CREATED, Response.EMPTY));
-    } catch (IOException ex) {
-      sendServerError(session);
-      logger.error("server error", ex);
-    }
-  }
-
-  private void handleDelete(Request request, HttpSession session, String id) throws IOException {
-    try {
-      dao.remove(id.getBytes());
-      session.sendResponse(new Response(Response.ACCEPTED, Response.EMPTY));
-    } catch (IOException ex) {
-      sendServerError(session);
-      logger.error("server error", ex);
+  private Response deleteResultToResponse(Result result) {
+    switch (result.getStatus()) {
+      case OK:
+        return accepted();
+      case ABSENT:
+        return accepted();
+      case DELETED:
+      case ERROR:
+        return serverError();
+      default:
+        return serverError();
     }
   }
 
@@ -184,20 +225,36 @@ public class OneNioHttpServer extends HttpServer {
     session.sendResponse(Response.ok("Server is running"));
   }
 
-  private void sendNotFound(HttpSession session) throws IOException {
-    session.sendResponse(new Response(Response.NOT_FOUND, Response.EMPTY));
+  private Response notFound() {
+    return new Response(Response.NOT_FOUND, Response.EMPTY);
   }
 
-  private void sendMethodNotAllowed(HttpSession session) throws IOException {
-    session.sendResponse(new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY));
+  private Response notAllowed() {
+    return new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
   }
 
-  private void sendServerError(HttpSession session) throws IOException {
-    session.sendResponse(new Response(Response.INTERNAL_ERROR, Response.EMPTY));
+  private Response serverError() {
+    return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
+  }
+
+  private Response badRequest() {
+    return new Response(Response.BAD_REQUEST, Response.EMPTY);
+  }
+
+  private Response notEnoughReplicas() {
+    return new Response(Response.GATEWAY_TIMEOUT, "Not Enough Replicas".getBytes());
+  }
+
+  private Response created() {
+    return new Response(Response.CREATED, Response.EMPTY);
+  }
+
+  private Response accepted() {
+    return new Response(Response.ACCEPTED, Response.EMPTY);
   }
 
   private void sendBadRequest(HttpSession session) throws IOException {
-    session.sendResponse(new Response(Response.BAD_REQUEST, Response.EMPTY));
+    session.sendResponse(badRequest());
   }
 
   private String getId(Request request) {
@@ -217,7 +274,7 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private String methodToString(Request request) {
+  static String methodToString(Request request) {
     switch (request.getMethod()) {
       case Request.METHOD_GET:
         return "GET";

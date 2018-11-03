@@ -1,23 +1,26 @@
 package ru.mail.polis.kirpichenkov;
 
+import java.time.Instant;
+
 /**
  * Wrapper for the result, retrieved from local storage of from another node
+ *
  * @author Pavel Kirpichenkov
  */
 public class Result {
   private byte[] body;
   private Status status;
-  private long timestamp;
+  private Instant timestamp;
 
   Result() {
-    status = Status.NONE;
+    status = Status.ERROR;
   }
 
   byte[] getBody() {
     return body;
   }
 
-  long getTimestamp() {
+  Instant getTimestamp() {
     return timestamp;
   }
 
@@ -33,7 +36,7 @@ public class Result {
     this.status = status;
   }
 
-  void setTimestamp(long timestamp) {
+  void setTimestamp(Instant timestamp) {
     this.timestamp = timestamp;
   }
 
@@ -41,6 +44,6 @@ public class Result {
     OK,
     ABSENT,
     DELETED,
-    NONE
+    ERROR
   }
 }

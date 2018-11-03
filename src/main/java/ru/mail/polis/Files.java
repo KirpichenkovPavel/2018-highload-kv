@@ -57,7 +57,7 @@ final class Files {
                 new SimpleFileVisitor<Path>() {
                     private void remove(@NotNull final Path file) throws IOException {
                         if (!file.toFile().delete()) {
-                            throw new IOException("Can't delete " + file);
+                            throw new IOException("Can't remove " + file);
                         }
                     }
 
