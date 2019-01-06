@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.*;
 
 import static ru.mail.polis.kirpichenkov.Collaboration.entityPath;
 
@@ -19,6 +20,7 @@ public class OneNioHttpServer extends HttpServer {
   private InternalDao dao;
   private List<String> topology;
   private String me;
+  private ExecutorService threadPool;
 
   OneNioHttpServer(
       @NotNull final HttpServerConfig config,
@@ -27,11 +29,23 @@ public class OneNioHttpServer extends HttpServer {
     super(config, routers);
   }
 
-  void setDao(@NotNull final BasePathGrantingKVDao dao) {
+  @Override
+  public void start() {
+    super.start();
+    threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+  }
+
+  @Override
+  public void stop() {
+    super.stop();
+    threadPool.shutdown();
+  }
+
+  public void setDao(@NotNull final BasePathGrantingKVDao dao) {
     this.dao = new InternalDao(dao);
   }
 
-  void setTopology(@NotNull final Set<String> topology) {
+  public void setTopology(@NotNull final Set<String> topology) {
     this.topology = TopologyUtil.ordered(topology);
     me = findMe(topology);
   }
@@ -145,28 +159,45 @@ public class OneNioHttpServer extends HttpServer {
   {
     logger.debug("I am " + me);
     List<Result> results = new ArrayList<>();
+    CompletionService<Result> completionService = new ExecutorCompletionService<>(threadPool);
     for (String nodeUrl : nodes) {
-      Result result;
-      if (nodeUrl.equals(me)) {
-        result = Collaboration.local(request, id, dao);
-        logger.debug(
-            String.format(
-                "Local %s %s%s %s",
-                methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
-      } else {
-        result = Collaboration.remote(request, id, nodeUrl);
-        logger.debug(
-            String.format(
-                "Remote %s %s%s %s",
-                methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
-      }
-      results.add(result);
+      Callable<Result> task = () -> {
+        Result result;
+        if (nodeUrl.equals(me)) {
+          result = Collaboration.local(request, id, dao);
+          logger.debug(
+              String.format(
+                  "Local %s %s%s %s",
+                  methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+        } else {
+          result = Collaboration.remote(request, id, nodeUrl);
+          logger.debug(
+              String.format(
+                  "Remote %s %s%s %s",
+                  methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+        }
+        return result;
+      };
+      completionService.submit(task);
     }
-    Result result = Collaboration.mergeResults(results, acksRequired);
+    int receivedResultsCounter = 0;
+    while (receivedResultsCounter < nodes.size()) {
+      try{
+        Future<Result> wrappedResult = completionService.take();
+        results.add(wrappedResult.get());
+      } catch (InterruptedException | ExecutionException ex) {
+        logger.error(ex + "\nCause: " + ex.getCause());
+        results.add(Collaboration.error());
+      } finally{
+        receivedResultsCounter++;
+        logger.debug("Received: " + receivedResultsCounter);
+      }
+    }
+    Result mergeResult = Collaboration.mergeResults(results, acksRequired);
     Response response =
-        result.getStatus() == Result.Status.ERROR
+        mergeResult.getStatus() == Result.Status.ERROR
             ? notEnoughReplicas()
-            : resultToResponse(request.getMethod(), result);
+            : resultToResponse(request.getMethod(), mergeResult);
     session.sendResponse(response);
   }
 

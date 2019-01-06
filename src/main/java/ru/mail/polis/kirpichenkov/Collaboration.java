@@ -37,7 +37,7 @@ public class Collaboration {
   }
 
   @NotNull
-  private static Result error() {
+  public static Result error() {
     Result result = new Result();
     result.setStatus(Status.ERROR);
     return result;
