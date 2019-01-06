@@ -26,7 +26,7 @@ import java.util.Collections;
  * @author Vadim Tsesko <mail@incubos.org>
  */
 public final class Server {
-    private static final int PORT = 8080;
+//    private static final int PORT = 8080;
 
     private Server() {
         // Not instantiable
@@ -35,6 +35,8 @@ public final class Server {
     public static void main(String[] args) throws IOException {
         // Temporary storage in the file system
         final File data = Files.createTempDirectory();
+
+        final int PORT = Integer.parseInt(args[0]);
 
         // Start the storage
         final KVDao dao = KVDaoFactory.create(data);

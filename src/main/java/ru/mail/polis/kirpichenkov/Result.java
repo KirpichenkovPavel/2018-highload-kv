@@ -3,7 +3,7 @@ package ru.mail.polis.kirpichenkov;
 import java.time.Instant;
 
 /**
- * Wrapper for the result, retrieved from local storage of from another node
+ * Wrapper for the result, retrieved from local storage or another node
  *
  * @author Pavel Kirpichenkov
  */
@@ -28,15 +28,15 @@ public class Result {
     return status;
   }
 
-  void setBody(byte[] body) {
+  void setBody(final byte[] body) {
     this.body = body;
   }
 
-  void setStatus(Status status) {
+  void setStatus(final Status status) {
     this.status = status;
   }
 
-  void setTimestamp(Instant timestamp) {
+  void setTimestamp(final Instant timestamp) {
     this.timestamp = timestamp;
   }
 

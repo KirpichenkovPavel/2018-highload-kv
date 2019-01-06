@@ -30,7 +30,8 @@ public class InternalDao {
    * @param id key of value we want to retrieve
    * @return Result object with the result of operation
    */
-  public Result get(byte[] id) {
+  @NotNull
+  public Result get(final byte[] id) {
     Result result = new Result();
     try {
       if (setResultIfDeleted(result, id)) {
@@ -56,7 +57,10 @@ public class InternalDao {
     return result;
   }
 
-  private boolean setResultIfDeleted(Result result, byte[] id) {
+  private boolean setResultIfDeleted(
+      @NotNull final Result result,
+      final byte[] id
+  ) {
     File tombstone = KeyConverter.keyToTombstone(id, dao.getBasePath());
     if (!tombstone.exists()) {
       return false;
@@ -73,7 +77,11 @@ public class InternalDao {
     }
   }
 
-  public Result upsert(byte[] id, byte[] body) {
+  @NotNull
+  public Result upsert(
+      final byte[] id,
+      final byte[] body
+  ) {
     Result result = new Result();
     try {
       Path filePath = KeyConverter.keyToFile(id, dao.getBasePath()).toPath();
@@ -91,7 +99,8 @@ public class InternalDao {
     }
   }
 
-  public Result remove(byte[] id) {
+  @NotNull
+  public Result remove(final byte[] id) {
     Result result = new Result();
     try {
       File fileToRemove = KeyConverter.keyToFile(id, dao.getBasePath());
@@ -119,7 +128,11 @@ public class InternalDao {
     }
   }
 
-  private synchronized boolean checkAndMoveTombstone(Path from, Path to, Instant newTimestamp) {
+  private synchronized boolean checkAndMoveTombstone(
+      @NotNull final Path from,
+      @NotNull final Path to,
+      @NotNull final Instant newTimestamp
+  ) {
     try {
       if (!Files.exists(to)) {
         Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
@@ -136,8 +149,11 @@ public class InternalDao {
     }
   }
 
-  private synchronized void checkAndRemoveTombstone(Path path, Instant timestamp)
-      throws IOException {
+  private synchronized void checkAndRemoveTombstone(
+      @NotNull final Path path,
+      @NotNull final Instant timestamp
+  ) throws IOException
+  {
     if (Files.exists(path) && Files.getLastModifiedTime(path).toInstant().isBefore(timestamp)) {
       try {
         Files.delete(path);

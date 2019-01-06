@@ -31,17 +31,24 @@ public class Collaboration {
   static final int STATUS_NOT_ENOUGH_REPLICAS = 504;
   private static final long TIMEOUT = TimeUnit.MILLISECONDS.toMillis(500);
 
-  static String entityPath(final String id) {
+  @NotNull
+  static String entityPath(@NotNull final String id) {
     return "/v0/entity?id=" + id;
   }
 
+  @NotNull
   private static Result error() {
     Result result = new Result();
     result.setStatus(Status.ERROR);
     return result;
   }
 
-  static Result remote(Request request, String id, String nodeUrl) {
+  @NotNull
+  static Result remote(
+      @NotNull final Request request,
+      @NotNull final String id,
+      @NotNull final String nodeUrl
+  ) {
     try (HttpClient client =
         new HttpClient(new ConnectionString(nodeUrl + "?timeout=" + TIMEOUT))) {
       switch (request.getMethod()) {
@@ -54,13 +61,21 @@ public class Collaboration {
         default:
           return error();
       }
-    } catch (InterruptedException | HttpException | PoolException | IOException ex) {
+    } catch (InterruptedException | HttpException | IOException ex) {
       logger.error(ex);
+      return error();
+    } catch (PoolException ex) {
+      logger.error(ex + "; Cause: " + ex.getCause());
       return error();
     }
   }
 
-  static Result local(Request request, String id, InternalDao dao) {
+  @NotNull
+  static Result local(
+      @NotNull final Request request,
+      @NotNull final String id,
+      @NotNull final InternalDao dao
+  ) {
     switch (request.getMethod()) {
       case Request.METHOD_GET:
         return dao.get(id.getBytes());
@@ -73,8 +88,12 @@ public class Collaboration {
     }
   }
 
-  private static Result remoteGet(String id, HttpClient client)
-      throws InterruptedException, HttpException, PoolException, IOException {
+  @NotNull
+  private static Result remoteGet(
+      @NotNull final String id,
+      @NotNull final HttpClient client
+  ) throws InterruptedException, HttpException, PoolException, IOException
+  {
     Result result = new Result();
     Response response = client.get(entityPath(id), INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
@@ -92,8 +111,13 @@ public class Collaboration {
     return result;
   }
 
-  private static Result remotePut(String id, HttpClient client, byte[] body)
-      throws InterruptedException, HttpException, PoolException, IOException {
+  @NotNull
+  private static Result remotePut(
+      @NotNull final String id,
+      @NotNull final HttpClient client,
+      final byte[] body
+  ) throws InterruptedException, HttpException, PoolException, IOException
+  {
     Result result = new Result();
     Response response = client.put(entityPath(id), body, INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
@@ -106,8 +130,12 @@ public class Collaboration {
     return result;
   }
 
-  private static Result remoteDelete(String id, HttpClient client)
-      throws InterruptedException, HttpException, PoolException, IOException {
+  @NotNull
+  private static Result remoteDelete(
+      @NotNull final String id,
+      @NotNull final HttpClient client
+  ) throws InterruptedException, HttpException, PoolException, IOException
+  {
     Result result = new Result();
     Response response = client.delete(entityPath(id), INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
@@ -120,12 +148,16 @@ public class Collaboration {
     return result;
   }
 
-  static boolean isInternal(Request request) {
+  static boolean isInternal(@NotNull final Request request) {
     String header = request.getHeader(INTERNAL_HEADER_KEY);
     return header != null && headerValue(header).equals(INTERNAL_HEADER_VALUE);
   }
 
-  private static Instant getTimestampFromHeader(Response response) throws IllegalArgumentException {
+  @NotNull
+  private static Instant getTimestampFromHeader(
+      @NotNull final Response response
+  ) throws IllegalArgumentException
+  {
     try {
       String timestamp = response.getHeader(TIMESTAMP_HEADER);
       if (timestamp != null) {
@@ -138,7 +170,11 @@ public class Collaboration {
     }
   }
 
-  static Result mergeResults(Collection<Result> results, int acksRequired) {
+  @NotNull
+  static Result mergeResults(
+      @NotNull final Collection<Result> results,
+      final int acksRequired
+  ) {
     Result result = new Result();
     result.setTimestamp(Instant.MIN);
     result.setStatus(Status.ERROR);
@@ -159,7 +195,7 @@ public class Collaboration {
   }
 
   @NotNull
-  static String headerValue(@NotNull String header) {
+  private static String headerValue(@NotNull final String header) {
     if (!header.startsWith(":")) {
       throw new IllegalArgumentException("Unexpected raw header value: " + header);
     }

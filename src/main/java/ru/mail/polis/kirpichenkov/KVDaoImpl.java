@@ -23,7 +23,7 @@ public class KVDaoImpl implements KVDao, BasePathGrantingKVDao {
 
   @NotNull
   @Override
-  public byte[] get(@NotNull byte[] key) throws NoSuchElementException, IOException {
+  public byte[] get(@NotNull final byte[] key) throws NoSuchElementException, IOException {
     File fileToRead = KeyConverter.keyToFile(key, basePath);
     logger.debug(String.format("get %s", fileToRead.toString()));
     if (!fileToRead.exists() || !fileToRead.isFile()) {
@@ -34,7 +34,11 @@ public class KVDaoImpl implements KVDao, BasePathGrantingKVDao {
   }
 
   @Override
-  public void upsert(@NotNull byte[] key, @NotNull byte[] value) throws IOException {
+  public void upsert(
+      @NotNull final byte[] key,
+      @NotNull final byte[] value
+  ) throws IOException
+  {
     File fileToWrite = KeyConverter.keyToFile(key, basePath);
     logger.debug(String.format("upsert %s", fileToWrite));
     File parentDir = fileToWrite.getParentFile();
@@ -48,7 +52,7 @@ public class KVDaoImpl implements KVDao, BasePathGrantingKVDao {
   }
 
   @Override
-  public void remove(@NotNull byte[] key) throws IOException {
+  public void remove(@NotNull final byte[] key) throws IOException {
     File fileToRemove = KeyConverter.keyToFile(key, basePath);
     logger.debug(String.format("remove %s", fileToRemove));
     if (fileToRemove.exists()) {
@@ -62,6 +66,7 @@ public class KVDaoImpl implements KVDao, BasePathGrantingKVDao {
   public void close() throws IOException {}
 
   @Override
+  @NotNull
   public File getBasePath() {
     return basePath;
   }

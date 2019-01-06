@@ -1,5 +1,7 @@
 package ru.mail.polis.kirpichenkov;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -15,23 +17,26 @@ public class NanoClock extends Clock {
     this(Clock.systemUTC());
   }
 
-  public NanoClock(final Clock clock) {
+  public NanoClock(@NotNull final Clock clock) {
     this.clock = clock;
     initialInstant = clock.instant();
     initialNanos = getSystemNanos();
   }
 
   @Override
+  @NotNull
   public ZoneId getZone() {
     return clock.getZone();
   }
 
   @Override
+  @NotNull
   public Instant instant() {
     return initialInstant.plusNanos(getSystemNanos() - initialNanos);
   }
 
   @Override
+  @NotNull
   public Clock withZone(final ZoneId zone) {
     return new NanoClock(clock.withZone(zone));
   }

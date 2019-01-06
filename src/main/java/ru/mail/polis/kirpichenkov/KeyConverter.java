@@ -17,16 +17,26 @@ class KeyConverter {
    * directory is limited. Long keys are transformed into directory hierarchy
    */
   @NotNull
-  static File keyToFile(@NotNull byte[] key, File basePath) {
+  static File keyToFile(
+      @NotNull final byte[] key,
+      @NotNull final File basePath
+  ) {
     return new File(pathString(key, basePath));
   }
 
   @NotNull
-  static File keyToTombstone(@NotNull byte[] key, File basePath) {
+  static File keyToTombstone(
+      @NotNull final byte[] key,
+      @NotNull final File basePath
+  ) {
     return new File(pathString(key, basePath) + TOMBSTONE_SUFFIX);
   }
 
-  private static String pathString(@NotNull byte[] key, File basePath) {
+  @NotNull
+  private static String pathString(
+      @NotNull final byte[] key,
+      @NotNull final File basePath
+  ) {
     final String hexKey = DatatypeConverter.printHexBinary(key);
     final int hexLength = hexKey.length();
     final StringBuilder path = new StringBuilder(basePath.toString());

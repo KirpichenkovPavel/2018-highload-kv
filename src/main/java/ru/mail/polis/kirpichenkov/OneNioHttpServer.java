@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 import org.javatuples.Pair;
 import org.javatuples.Triplet;
 import org.jetbrains.annotations.NotNull;
-import ru.mail.polis.KVDao;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,15 +20,18 @@ public class OneNioHttpServer extends HttpServer {
   private List<String> topology;
   private String me;
 
-  OneNioHttpServer(HttpServerConfig config, Object... routers) throws IOException {
+  OneNioHttpServer(
+      @NotNull final HttpServerConfig config,
+      final Object... routers
+  ) throws IOException {
     super(config, routers);
   }
 
-  void setDao(BasePathGrantingKVDao dao) {
+  void setDao(@NotNull final BasePathGrantingKVDao dao) {
     this.dao = new InternalDao(dao);
   }
 
-  void setTopology(Set<String> topology) {
+  void setTopology(@NotNull final Set<String> topology) {
     this.topology = TopologyUtil.ordered(topology);
     me = findMe(topology);
   }
@@ -41,7 +43,8 @@ public class OneNioHttpServer extends HttpServer {
    * @param topology collection of node urls
    * @return found url or empty string
    */
-  private String findMe(Collection<String> topology) {
+  @NotNull
+  private String findMe(@NotNull final Collection<String> topology) {
     return topology
         .stream()
         .filter(
@@ -58,7 +61,11 @@ public class OneNioHttpServer extends HttpServer {
    *
    * @throws IOException
    */
-  public void handleDefault(Request request, HttpSession session) throws IOException {
+  public void handleDefault(
+      @NotNull final Request request,
+      @NotNull final HttpSession session
+  ) throws IOException
+  {
     logger.debug(String.format("%s %s", methodToString(request), request.getURI()));
     switch (request.getPath()) {
       case "/v0/status":
@@ -72,7 +79,11 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private void handleEntity(Request request, HttpSession session) throws IOException {
+  private void handleEntity(
+      @NotNull final Request request,
+      @NotNull final HttpSession session
+  ) throws IOException
+  {
     Triplet<String, Integer, Integer> params;
     try {
       params = processParams(request);
@@ -101,8 +112,10 @@ public class OneNioHttpServer extends HttpServer {
    * @return entity key, minimal required number of acknowledges, total number of replicas
    * @throws IllegalArgumentException if request contains malformed parameters
    */
-  private Triplet<String, Integer, Integer> processParams(Request request)
-      throws IllegalArgumentException {
+  @NotNull
+  private Triplet<String, Integer, Integer> processParams(@NotNull final Request request)
+      throws IllegalArgumentException
+  {
     String id = getId(request);
     String replicas = getReplicas(request);
     if (id.isEmpty()) {
@@ -123,8 +136,13 @@ public class OneNioHttpServer extends HttpServer {
   }
 
   private void collaborate(
-      Request request, HttpSession session, String id, Collection<String> nodes, int acksRequired)
-      throws IOException {
+      @NotNull final Request request,
+      @NotNull final HttpSession session,
+      @NotNull final String id,
+      @NotNull final Collection<String> nodes,
+      final int acksRequired
+  ) throws IOException
+  {
     logger.debug("I am " + me);
     List<Result> results = new ArrayList<>();
     for (String nodeUrl : nodes) {
@@ -152,17 +170,22 @@ public class OneNioHttpServer extends HttpServer {
     session.sendResponse(response);
   }
 
-  private void handleAlone(Request request, HttpSession session, String id) throws IOException {
+  private void handleAlone(
+      @NotNull final Request request,
+      @NotNull final HttpSession session,
+      @NotNull final String id
+  ) throws IOException
+  {
     Result result = Collaboration.local(request, id, dao);
     Response response = resultToResponse(request.getMethod(), result);
-    if (response != null) {
-      session.sendResponse(response);
-    } else {
-      session.sendResponse(serverError());
-    }
+    session.sendResponse(response);
   }
 
-  private Response resultToResponse(int method, Result result) {
+  @NotNull
+  private Response resultToResponse(
+      final int method,
+      @NotNull final Result result
+  ) {
     Response response;
     switch (method) {
       case Request.METHOD_GET:
@@ -181,7 +204,8 @@ public class OneNioHttpServer extends HttpServer {
     return response;
   }
 
-  private Response getResultToResponse(Result result) {
+  @NotNull
+  private Response getResultToResponse(@NotNull final Result result) {
     switch (result.getStatus()) {
       case OK:
         return Response.ok(result.getBody());
@@ -195,7 +219,8 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private Response putResultToResponse(Result result) {
+  @NotNull
+  private Response putResultToResponse(@NotNull final Result result) {
     switch (result.getStatus()) {
       case OK:
         return created();
@@ -208,7 +233,8 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private Response deleteResultToResponse(Result result) {
+  @NotNull
+  private Response deleteResultToResponse(@NotNull final Result result) {
     switch (result.getStatus()) {
       case OK:
         return accepted();
@@ -222,51 +248,64 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  private void handleStatus(HttpSession session) throws IOException {
+  private void handleStatus(@NotNull final HttpSession session) throws IOException {
     session.sendResponse(Response.ok("Server is running"));
   }
 
+  @NotNull
   private Response notFound() {
     return new Response(Response.NOT_FOUND, Response.EMPTY);
   }
 
+  @NotNull
   private Response notAllowed() {
     return new Response(Response.METHOD_NOT_ALLOWED, Response.EMPTY);
   }
 
+  @NotNull
   private Response serverError() {
     return new Response(Response.INTERNAL_ERROR, Response.EMPTY);
   }
 
+  @NotNull
   private Response badRequest() {
     return new Response(Response.BAD_REQUEST, Response.EMPTY);
   }
 
+  @NotNull
   private Response notEnoughReplicas() {
     return new Response(Response.GATEWAY_TIMEOUT, "Not Enough Replicas".getBytes());
   }
 
+  @NotNull
   private Response created() {
     return new Response(Response.CREATED, Response.EMPTY);
   }
 
+  @NotNull
   private Response accepted() {
     return new Response(Response.ACCEPTED, Response.EMPTY);
   }
 
-  private void sendBadRequest(HttpSession session) throws IOException {
+  private void sendBadRequest(@NotNull final HttpSession session) throws IOException {
     session.sendResponse(badRequest());
   }
 
-  private String getId(Request request) {
+  @NotNull
+  private String getId(@NotNull final Request request) {
     return getParameter(request, "id");
   }
 
-  private String getReplicas(Request request) {
+  @NotNull
+  private String getReplicas(@NotNull final Request request) {
     return getParameter(request, "replicas");
   }
 
-  private String getParameter(Request request, String name) {
+  @NotNull
+  private String getParameter(
+      @NotNull final Request request,
+      @NotNull final String name
+  ) {
     String param = request.getParameter(String.format("%s=", name));
     if (param == null) {
       return "";
@@ -275,7 +314,8 @@ public class OneNioHttpServer extends HttpServer {
     }
   }
 
-  static String methodToString(Request request) {
+  @NotNull
+  static String methodToString(@NotNull final Request request) {
     switch (request.getMethod()) {
       case Request.METHOD_GET:
         return "GET";

@@ -3,6 +3,7 @@ package ru.mail.polis.kirpichenkov;
 import one.nio.http.*;
 import one.nio.server.AcceptorConfig;
 import org.apache.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVDao;
 import ru.mail.polis.KVService;
 
@@ -39,7 +40,11 @@ public class KVServiceImpl implements KVService {
    * @param topology set of all node urls
    * @return new instance
    */
-  public static KVService create(KVDao dao, int port, Set<String> topology) {
+  public static KVService create(
+      @NotNull final KVDao dao,
+      final int port,
+      @NotNull final Set<String> topology
+  ) {
     HttpServerConfig config = createConfig(port);
     KVServiceImpl kvService = new KVServiceImpl();
     try {
@@ -63,7 +68,7 @@ public class KVServiceImpl implements KVService {
       logger.error(e);
       throw new RuntimeException(e);
     }
-    for (AcceptorConfig ac : config.acceptors) {
+    for (AcceptorConfig ac: config.acceptors) {
       logger.debug(String.format("server started at %s:%d", ac.address, ac.port));
     }
   }
@@ -75,7 +80,8 @@ public class KVServiceImpl implements KVService {
     }
   }
 
-  private static HttpServerConfig createConfig(int port) {
+  @NotNull
+  private static HttpServerConfig createConfig(final int port) {
     HttpServerConfig config = new HttpServerConfig();
     AcceptorConfig acceptorConfig = new AcceptorConfig();
     acceptorConfig.port = port;

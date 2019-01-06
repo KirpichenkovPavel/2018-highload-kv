@@ -1,6 +1,7 @@
 package ru.mail.polis.kirpichenkov;
 
 import org.javatuples.Pair;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -18,7 +19,8 @@ public class TopologyUtil {
    * @param topology set of node urls
    * @return sorted list of node urls
    */
-  public static List<String> ordered(Set<String> topology) {
+  @NotNull
+  public static List<String> ordered(@NotNull final Set<String> topology) {
     List<String> nodes = new ArrayList<>(topology);
     Collections.sort(nodes);
     return nodes;
@@ -33,8 +35,13 @@ public class TopologyUtil {
    * @return collection of N nodes, responsible for the given Id
    * @throws IllegalArgumentException if parameters are incorrect
    */
-  public static Collection<String> nodes(List<String> orderedTopology, String id, int from)
-      throws IllegalArgumentException {
+  @NotNull
+  public static Collection<String> nodes(
+      @NotNull final List<String> orderedTopology,
+      @NotNull final String id,
+      final int from
+  ) throws IllegalArgumentException
+  {
     if (orderedTopology.size() < 1) {
       throw new IllegalArgumentException("Empty list of nodes in topology");
     }
@@ -54,8 +61,10 @@ public class TopologyUtil {
     return results;
   }
 
-  public static Pair<Integer, Integer> parseReplicas(String replicas)
-      throws IllegalArgumentException {
+  @NotNull
+  public static Pair<Integer, Integer> parseReplicas(@NotNull final String replicas)
+      throws IllegalArgumentException
+  {
     if (!replicas.matches("[1-9][0-9]*/[1-9][0-9]*")) {
       throw new IllegalArgumentException("Request parameters are incorrect");
     }
@@ -68,7 +77,7 @@ public class TopologyUtil {
     return Pair.with(from, to);
   }
 
-  public static int quorum(int from) {
+  public static int quorum(final int from) {
     return from / 2 + 1;
   }
 }
