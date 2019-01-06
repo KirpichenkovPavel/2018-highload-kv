@@ -47,11 +47,10 @@ public class KVServiceImpl implements KVService {
   ) {
     HttpServerConfig config = createConfig(port);
     KVServiceImpl kvService = new KVServiceImpl();
-    try {
-      kvService.setDao((BasePathGrantingKVDao) dao);
-    } catch (ClassCastException ex) {
+    if (!(dao instanceof BasePathGrantingKVDao)) {
       throw new RuntimeException("KVDao must implement BasePathGrantingKVDao");
     }
+    kvService.setDao((BasePathGrantingKVDao) dao);
     kvService.setConfig(config);
     kvService.setTopology(topology);
     return kvService;
