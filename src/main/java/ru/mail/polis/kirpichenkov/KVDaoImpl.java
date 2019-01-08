@@ -43,7 +43,7 @@ public class KVDaoImpl implements KVDao, BasePathGrantingKVDao {
     logger.debug(String.format("upsert %s", fileToWrite));
     File parentDir = fileToWrite.getParentFile();
     if (!parentDir.exists()) {
-      if (!parentDir.mkdirs()) {
+      if (!parentDir.mkdirs() && !parentDir.exists()) {
         throw new IOException("Can't create path to file " + parentDir.toString());
       }
     }

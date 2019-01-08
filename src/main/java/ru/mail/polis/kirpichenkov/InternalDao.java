@@ -128,7 +128,7 @@ public class InternalDao {
     }
   }
 
-  private synchronized boolean checkAndMoveTombstone(
+  private boolean checkAndMoveTombstone(
       @NotNull final Path from,
       @NotNull final Path to,
       @NotNull final Instant newTimestamp
@@ -149,7 +149,7 @@ public class InternalDao {
     }
   }
 
-  private synchronized void checkAndRemoveTombstone(
+  private void checkAndRemoveTombstone(
       @NotNull final Path path,
       @NotNull final Instant timestamp
   ) throws IOException

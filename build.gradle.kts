@@ -4,6 +4,7 @@
 plugins {
     java
     application
+    id("com.github.johnrengelman.shadow") version "4.0.3"
 }
 
 repositories {
@@ -32,6 +33,8 @@ dependencies {
 
     // Tuples
     compile("org.javatuples:javatuples:1.2")
+
+    compile("org.apache.httpcomponents:httpclient:4.5.6")
 }
 
 tasks {
@@ -43,7 +46,7 @@ tasks {
 
 application {
     // Define the main class for the application
-    mainClassName = "ru.mail.polis.Cluster"
+    mainClassName = "ru.mail.polis.ClusterNode"
 
     // And limit Xmx
     applicationDefaultJvmArgs = listOf("-Xmx128m")
