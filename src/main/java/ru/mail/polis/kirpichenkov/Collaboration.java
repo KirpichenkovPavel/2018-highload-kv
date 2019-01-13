@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Collaboration {
@@ -30,6 +32,7 @@ public class Collaboration {
   static final int STATUS_ERROR = 500;
   static final int STATUS_NOT_ENOUGH_REPLICAS = 504;
   private static final long TIMEOUT = TimeUnit.MILLISECONDS.toMillis(500);
+  private static final Map<String, HttpClient> connections = new HashMap<>();
 
   @NotNull
   static String entityPath(@NotNull final String id) {
@@ -49,8 +52,12 @@ public class Collaboration {
       @NotNull final String id,
       @NotNull final String nodeUrl
   ) {
-    try (HttpClient client =
-        new HttpClient(new ConnectionString(nodeUrl + "?timeout=" + TIMEOUT))) {
+    try {
+      HttpClient client = connections.get(nodeUrl);
+      if (client == null) {
+        client = new HttpClient(new ConnectionString(nodeUrl + "?timeout=" + TIMEOUT));
+        connections.put(nodeUrl, client);
+      }
       switch (request.getMethod()) {
         case Request.METHOD_GET:
           return remoteGet(id, client);

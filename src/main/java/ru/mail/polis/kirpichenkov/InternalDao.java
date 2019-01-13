@@ -11,11 +11,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class InternalDao {
   private static Logger logger = Logger.getLogger(InternalDao.class);
   private BasePathGrantingKVDao dao;
+  private final Map<Path, Boolean> filePresenceCache = FilePresenceCache.getInstance();
 
   InternalDao(BasePathGrantingKVDao dao) {
     this.dao = dao;
@@ -62,18 +63,21 @@ public class InternalDao {
       final byte[] id
   ) {
     File tombstone = KeyConverter.keyToTombstone(id, dao.getBasePath());
-    if (!tombstone.exists()) {
-      return false;
-    }
-    try {
-      Instant lastModified = Files.getLastModifiedTime(tombstone.toPath()).toInstant();
-      result.setTimestamp(lastModified);
-      result.setStatus(Result.Status.DELETED);
-      return true;
-    } catch (Exception ex) {
-      logger.error(ex);
-      error(result);
-      return true;
+    Path tombPath = tombstone.toPath();
+    synchronized (tombstone.toPath().toString().intern()) {
+      if (!ExistsChecks.exists(tombstone)) {
+        return false;
+      }
+      try {
+        Instant lastModified = Files.getLastModifiedTime(tombPath).toInstant();
+        result.setTimestamp(lastModified);
+        result.setStatus(Result.Status.DELETED);
+        return true;
+      } catch (Exception ex) {
+        logger.error(ex);
+        error(result);
+        return true;
+      }
     }
   }
 
@@ -83,19 +87,22 @@ public class InternalDao {
       final byte[] body
   ) {
     Result result = new Result();
-    try {
-      Path filePath = KeyConverter.keyToFile(id, dao.getBasePath()).toPath();
-      Path tombstonePath = KeyConverter.keyToTombstone(id, dao.getBasePath()).toPath();
-      dao.upsert(id, body);
-      Instant now = (new NanoClock()).instant();
-      Files.setLastModifiedTime(filePath, FileTime.from(now));
-      result.setStatus(Result.Status.OK);
-      result.setTimestamp(now);
-      checkAndRemoveTombstone(tombstonePath, now);
-      return result;
-    } catch (IOException ex) {
-      logger.error(ex);
-      return error(result);
+    Path filePath = KeyConverter.keyToFile(id, dao.getBasePath()).toPath();
+    Path tombstonePath = KeyConverter.keyToTombstone(id, dao.getBasePath()).toPath();
+    synchronized (filePath.toString().intern()) {
+      try {
+        filePresenceCache.remove(filePath);
+        dao.upsert(id, body);
+        Instant now = (new NanoClock()).instant();
+        Files.setLastModifiedTime(filePath, FileTime.from(now));
+        result.setStatus(Result.Status.OK);
+        result.setTimestamp(now);
+        checkAndRemoveTombstone(tombstonePath, now);
+        return result;
+      } catch (IOException ex) {
+        logger.error(ex);
+        return error(result);
+      }
     }
   }
 
@@ -104,7 +111,7 @@ public class InternalDao {
     Result result = new Result();
     try {
       File fileToRemove = KeyConverter.keyToFile(id, dao.getBasePath());
-      if (!fileToRemove.exists()) {
+      if (!ExistsChecks.exists(fileToRemove)) {
         result.setStatus(Result.Status.OK);
         result.setTimestamp(Instant.now(new NanoClock()));
         return result;
@@ -115,6 +122,7 @@ public class InternalDao {
       Instant now = (new NanoClock()).instant();
       Files.setLastModifiedTime(tmpTombstonePath, FileTime.from(now));
       if (checkAndMoveTombstone(tmpTombstonePath, actualTombstonePath, now)) {
+        filePresenceCache.remove(fileToRemove.toPath());
         dao.remove(id);
         result.setTimestamp(now);
         result.setStatus(Result.Status.OK);
@@ -133,19 +141,22 @@ public class InternalDao {
       @NotNull final Path to,
       @NotNull final Instant newTimestamp
   ) {
-    try {
-      if (!Files.exists(to)) {
-        Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
-        return true;
-      } else if (Files.getLastModifiedTime(to).toInstant().isBefore(newTimestamp)) {
-        Files.setLastModifiedTime(to, FileTime.from(newTimestamp));
-        return true;
-      } else {
+    synchronized (to.toString().intern()) {
+      try {
+        if (!ExistsChecks.exists(to)) {
+          filePresenceCache.remove(to);
+          Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
+          return true;
+        } else if (Files.getLastModifiedTime(to).toInstant().isBefore(newTimestamp)) {
+          Files.setLastModifiedTime(to, FileTime.from(newTimestamp));
+          return true;
+        } else {
+          return false;
+        }
+      } catch (IOException ex) {
+        logger.error(ex);
         return false;
       }
-    } catch (IOException ex) {
-      logger.error(ex);
-      return false;
     }
   }
 
@@ -154,8 +165,11 @@ public class InternalDao {
       @NotNull final Instant timestamp
   ) throws IOException
   {
-    if (Files.exists(path) && Files.getLastModifiedTime(path).toInstant().isBefore(timestamp)) {
+    if (ExistsChecks.exists(path)
+        && Files.getLastModifiedTime(path).toInstant().isBefore(timestamp))
+    {
       try {
+        filePresenceCache.remove(path);
         Files.delete(path);
       } catch (NoSuchFileException ex) {
         logger.warn(ex);
