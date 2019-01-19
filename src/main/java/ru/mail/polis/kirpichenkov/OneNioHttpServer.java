@@ -1,7 +1,8 @@
 package ru.mail.polis.kirpichenkov;
 
 import one.nio.http.*;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.javatuples.Pair;
 import org.javatuples.Triplet;
 import org.jetbrains.annotations.NotNull;
@@ -16,7 +17,7 @@ import java.util.concurrent.*;
 import static ru.mail.polis.kirpichenkov.Collaboration.entityPath;
 
 public class OneNioHttpServer extends HttpServer {
-  private static final Logger logger = Logger.getLogger(OneNioHttpServer.class);
+  private static final Logger logger = LogManager.getLogger(OneNioHttpServer.class);
   private InternalDao dao;
   private List<String> topology;
   private String me;
@@ -80,7 +81,7 @@ public class OneNioHttpServer extends HttpServer {
       @NotNull final HttpSession session
   ) throws IOException
   {
-    logger.debug(String.format("%s %s", methodToString(request), request.getURI()));
+    logger.debug("{} {}", () -> methodToString(request), request::getURI);
     switch (request.getPath()) {
       case "/v0/status":
         handleStatus(session);
@@ -157,7 +158,7 @@ public class OneNioHttpServer extends HttpServer {
       final int acksRequired
   ) throws IOException
   {
-    logger.debug("I am " + me);
+    logger.debug("I am {}", me);
     List<Result> results = new ArrayList<>();
     CompletionService<Result> completionService = new ExecutorCompletionService<>(threadPool);
     for (String nodeUrl : nodes) {
@@ -165,16 +166,18 @@ public class OneNioHttpServer extends HttpServer {
         Result result;
         if (nodeUrl.equals(me)) {
           result = Collaboration.local(request, id, dao);
-          logger.debug(
-              String.format(
-                  "Local %s %s%s %s",
-                  methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+          logger.debug("Local {} {}{} {}",
+              () -> methodToString(request),
+              () -> nodeUrl,
+              () -> entityPath(id),
+              () -> result.getStatus().name());
         } else {
           result = Collaboration.remote(request, id, nodeUrl);
-          logger.debug(
-              String.format(
-                  "Remote %s %s%s %s",
-                  methodToString(request), nodeUrl, entityPath(id), result.getStatus().name()));
+          logger.debug("Remote {} {}{} {}",
+              () -> methodToString(request),
+              () -> nodeUrl,
+              () -> entityPath(id),
+              () -> result.getStatus().name());
         }
         return result;
       };
@@ -186,11 +189,11 @@ public class OneNioHttpServer extends HttpServer {
         Future<Result> wrappedResult = completionService.take();
         results.add(wrappedResult.get());
       } catch (InterruptedException | ExecutionException ex) {
-        logger.error(ex + "\nCause: " + ex.getCause());
+        logger.error("{}\nCause: {}", () -> ex, ex::getCause);
         results.add(Collaboration.error());
       } finally{
         receivedResultsCounter++;
-        logger.debug("Received: " + receivedResultsCounter);
+        logger.debug("Received: {}", receivedResultsCounter);
       }
     }
     Result mergeResult = Collaboration.mergeResults(results, acksRequired);

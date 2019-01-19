@@ -1,6 +1,7 @@
 package ru.mail.polis.kirpichenkov;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -14,7 +15,7 @@ import java.time.Instant;
 import java.util.*;
 
 public class InternalDao {
-  private static Logger logger = Logger.getLogger(InternalDao.class);
+  private static Logger logger = LogManager.getLogger(InternalDao.class);
   private BasePathGrantingKVDao dao;
   private final Map<Path, Boolean> filePresenceCache = FilePresenceCache.getInstance();
 

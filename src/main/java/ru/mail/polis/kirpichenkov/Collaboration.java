@@ -6,7 +6,8 @@ import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.ConnectionString;
 import one.nio.pool.PoolException;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.kirpichenkov.Result.Status;
 
@@ -19,7 +20,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Collaboration {
-  private static Logger logger = Logger.getLogger(Collaboration.class);
+  private static Logger logger = LogManager.getLogger(Collaboration.class);
   static final String INTERNAL_HEADER_KEY = "X-INTERNAL";
   static final String INTERNAL_HEADER_VALUE = "TRUE";
   static final String INTERNAL_HEADER =
@@ -71,7 +72,7 @@ public class Collaboration {
       logger.error(ex);
       return error();
     } catch (PoolException ex) {
-      logger.error(ex + "; Cause: " + ex.getCause());
+      logger.error("{}; Cause: {}", () -> ex, ex::getCause);
       return error();
     }
   }

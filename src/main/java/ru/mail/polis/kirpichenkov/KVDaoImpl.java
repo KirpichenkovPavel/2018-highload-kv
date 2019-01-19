@@ -1,7 +1,8 @@
 package ru.mail.polis.kirpichenkov;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -14,7 +15,7 @@ import org.apache.commons.io.FileUtils;
 
 /** @author Pavel Kirpichenkov */
 public class KVDaoImpl implements BasePathGrantingKVDao {
-  private static final Logger logger = Logger.getLogger(KVDaoImpl.class);
+  private static final Logger logger = LogManager.getLogger();
   private final File basePath;
   private final Map<Path, Boolean> filePresenceCache = FilePresenceCache.getInstance();
   public KVDaoImpl(@NotNull File path) {
@@ -25,7 +26,7 @@ public class KVDaoImpl implements BasePathGrantingKVDao {
   @Override
   public byte[] get(@NotNull final byte[] key) throws NoSuchElementException, IOException {
     File fileToRead = KeyConverter.keyToFile(key, basePath);
-    logger.debug(String.format("get %s", fileToRead.toString()));
+    logger.debug("get {}", fileToRead);
     if (!ExistsChecks.exists(fileToRead) || !fileToRead.isFile()) {
       throw new NoSuchElementException();
     } else {
@@ -40,7 +41,7 @@ public class KVDaoImpl implements BasePathGrantingKVDao {
   ) throws IOException
   {
     File fileToWrite = KeyConverter.keyToFile(key, basePath);
-    logger.debug(String.format("upsert %s", fileToWrite));
+    logger.debug("upsert {}", () -> fileToWrite);
     File parentDir = fileToWrite.getParentFile();
     if (!parentDir.exists()) {
       if (!parentDir.mkdirs() && !parentDir.exists()) {
@@ -55,7 +56,7 @@ public class KVDaoImpl implements BasePathGrantingKVDao {
   @Override
   public void remove(@NotNull final byte[] key) throws IOException {
     File fileToRemove = KeyConverter.keyToFile(key, basePath);
-    logger.debug(String.format("remove %s", fileToRemove));
+    logger.debug("remove {}", () -> fileToRemove);
     if (ExistsChecks.exists(fileToRemove)) {
       filePresenceCache.remove(fileToRemove.toPath());
       if (!fileToRemove.delete()) {

@@ -2,7 +2,8 @@ package ru.mail.polis.kirpichenkov;
 
 import one.nio.http.*;
 import one.nio.server.AcceptorConfig;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVDao;
 import ru.mail.polis.KVService;
@@ -12,7 +13,7 @@ import java.util.Set;
 
 /** @author Pavel Kirpichenkov */
 public class KVServiceImpl implements KVService {
-  private static final Logger logger = Logger.getLogger(KVServiceImpl.class);
+  private static final Logger logger = LogManager.getLogger(KVServiceImpl.class);
   private BasePathGrantingKVDao dao;
   private HttpServerConfig config;
   private Set<String> topology;
@@ -68,7 +69,7 @@ public class KVServiceImpl implements KVService {
       throw new RuntimeException(e);
     }
     for (AcceptorConfig ac: config.acceptors) {
-      logger.debug(String.format("server started at %s:%d", ac.address, ac.port));
+      logger.debug("server started at {}:{}", () -> ac.address, () -> ac.port);
     }
   }
 
