@@ -1,7 +1,10 @@
 package ru.mail.polis.kirpichenkov;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.CaffeineSpec;
+
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -26,9 +29,11 @@ class FilePresenceCache extends LinkedHashMap<Path, Boolean> {
 
   static synchronized Map<Path, Boolean> getInstance() {
     if (instance == null) {
-      instance = Collections.synchronizedMap(
-          new FilePresenceCache(CACHE_SIZE * 4/3, 0.75f, true)
-      );
+      Cache<Path, Boolean> cache = Caffeine.newBuilder()
+          .initialCapacity(CACHE_SIZE)
+          .maximumSize(CACHE_SIZE)
+          .build();
+      instance = cache.asMap();
     }
     return instance;
   }

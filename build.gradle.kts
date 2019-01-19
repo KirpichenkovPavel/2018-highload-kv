@@ -35,6 +35,8 @@ dependencies {
     compile("org.javatuples:javatuples:1.2")
 
     compile("org.apache.httpcomponents:httpclient:4.5.6")
+
+    compile("com.github.ben-manes.caffeine:caffeine:2.6.2")
 }
 
 tasks {
