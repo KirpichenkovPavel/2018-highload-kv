@@ -39,17 +39,19 @@ public class InternalDao {
         return result;
       }
       byte[] value = dao.get(id);
-      result.setBody(value);
-      result.setStatus(Result.Status.OK);
       Path file = KeyConverter.keyToFile(id, dao.getBasePath()).toPath();
       Instant timestamp = Files.getLastModifiedTime(file).toInstant();
-      result.setTimestamp(timestamp);
+      result
+          .setBody(value)
+          .setStatus(Result.Status.OK)
+          .setTimestamp(timestamp);
     } catch (NoSuchElementException ex) {
       if (setResultIfDeleted(result, id)) {
         return result;
       } else {
-        result.setStatus(Result.Status.ABSENT);
-        result.setTimestamp(Instant.MIN);
+        result
+            .setStatus(Result.Status.ABSENT)
+            .setTimestamp(Instant.MIN);
       }
     } catch (IOException ex) {
       logger.error(ex);
@@ -70,8 +72,9 @@ public class InternalDao {
       }
       try {
         Instant lastModified = Files.getLastModifiedTime(tombPath).toInstant();
-        result.setTimestamp(lastModified);
-        result.setStatus(Result.Status.DELETED);
+        result
+            .setTimestamp(lastModified)
+            .setStatus(Result.Status.DELETED);
         return true;
       } catch (Exception ex) {
         logger.error(ex);
@@ -95,8 +98,9 @@ public class InternalDao {
         dao.upsert(id, body);
         Instant now = (new NanoClock()).instant();
         Files.setLastModifiedTime(filePath, FileTime.from(now));
-        result.setStatus(Result.Status.OK);
-        result.setTimestamp(now);
+        result
+            .setStatus(Result.Status.OK)
+            .setTimestamp(now);
         checkAndRemoveTombstone(tombstonePath, now);
         return result;
       } catch (IOException ex) {
@@ -112,8 +116,9 @@ public class InternalDao {
     try {
       File fileToRemove = KeyConverter.keyToFile(id, dao.getBasePath());
       if (!ExistsChecks.exists(fileToRemove)) {
-        result.setStatus(Result.Status.OK);
-        result.setTimestamp(Instant.now(new NanoClock()));
+        result
+            .setStatus(Result.Status.OK)
+            .setTimestamp(Instant.now(new NanoClock()));
         return result;
       }
       String prefix = new String(id);
@@ -124,8 +129,9 @@ public class InternalDao {
       if (checkAndMoveTombstone(tmpTombstonePath, actualTombstonePath, now)) {
         filePresenceCache.remove(fileToRemove.toPath());
         dao.remove(id);
-        result.setTimestamp(now);
-        result.setStatus(Result.Status.OK);
+        result
+            .setTimestamp(now)
+            .setStatus(Result.Status.OK);
         return result;
       } else {
         return error(result);
@@ -179,8 +185,8 @@ public class InternalDao {
 
   @NotNull
   private Result error(@NotNull Result result) {
-    result.setTimestamp(Instant.MIN);
-    result.setStatus(Result.Status.ERROR);
-    return result;
+    return result
+        .setStatus(Result.Status.ERROR)
+        .setTimestamp(Instant.MIN);
   }
 }

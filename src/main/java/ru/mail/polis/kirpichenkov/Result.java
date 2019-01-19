@@ -28,16 +28,19 @@ public class Result {
     return status;
   }
 
-  void setBody(final byte[] body) {
+  Result setBody(final byte[] body) {
     this.body = body;
+    return this;
   }
 
-  void setStatus(final Status status) {
+  Result setStatus(final Status status) {
     this.status = status;
+    return this;
   }
 
-  void setTimestamp(final Instant timestamp) {
+  Result setTimestamp(final Instant timestamp) {
     this.timestamp = timestamp;
+    return this;
   }
 
   enum Status {

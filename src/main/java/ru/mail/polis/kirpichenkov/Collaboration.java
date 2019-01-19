@@ -41,9 +41,8 @@ public class Collaboration {
 
   @NotNull
   public static Result error() {
-    Result result = new Result();
-    result.setStatus(Status.ERROR);
-    return result;
+    return new Result()
+        .setStatus(Status.ERROR);
   }
 
   @NotNull
@@ -101,13 +100,14 @@ public class Collaboration {
       @NotNull final HttpClient client
   ) throws InterruptedException, HttpException, PoolException, IOException
   {
-    Result result = new Result();
     Response response = client.get(entityPath(id), INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
-    result.setTimestamp(timestamp);
+    Result result = new Result()
+        .setTimestamp(timestamp);
     if (response.getStatus() == STATUS_OK) {
-      result.setBody(response.getBody());
-      result.setStatus(Status.OK);
+      result
+          .setBody(response.getBody())
+          .setStatus(Status.OK);
     } else if (response.getStatus() == STATUS_NOT_FOUND) {
       if (timestamp.equals(Instant.MIN)) {
         result.setStatus(Status.ABSENT);
@@ -125,10 +125,10 @@ public class Collaboration {
       final byte[] body
   ) throws InterruptedException, HttpException, PoolException, IOException
   {
-    Result result = new Result();
     Response response = client.put(entityPath(id), body, INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
-    result.setTimestamp(timestamp);
+    Result result = new Result()
+        .setTimestamp(timestamp);
     if (response.getStatus() == STATUS_CREATED) {
       result.setStatus(Status.OK);
     } else {
@@ -143,10 +143,10 @@ public class Collaboration {
       @NotNull final HttpClient client
   ) throws InterruptedException, HttpException, PoolException, IOException
   {
-    Result result = new Result();
     Response response = client.delete(entityPath(id), INTERNAL_HEADER);
     Instant timestamp = getTimestampFromHeader(response);
-    result.setTimestamp(timestamp);
+    Result result = new Result()
+        .setTimestamp(timestamp);
     if (response.getStatus() == STATUS_ACCEPTED) {
       result.setStatus(Status.OK);
     } else {
@@ -182,9 +182,9 @@ public class Collaboration {
       @NotNull final Collection<Result> results,
       final int acksRequired
   ) {
-    Result result = new Result();
-    result.setTimestamp(Instant.MIN);
-    result.setStatus(Status.ERROR);
+    Result result = new Result()
+        .setTimestamp(Instant.MIN)
+        .setStatus(Status.ERROR);
     int successCounter = 0;
     for (Result r : results) {
       if (r.getStatus() != Status.ERROR) {
